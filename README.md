@@ -5,6 +5,8 @@ Algorithm for recognition od plateaus in time signals. By plateau we understand 
 
 ## Installation
 
+Inside folder signal_plateau_recognition/ type:
+
     pip install --user .
 
 ## Example script
