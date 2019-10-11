@@ -1,17 +1,17 @@
 Signal plateau recognition
 ==========================
 
-Algorithm for recognition od plateaus in time signals. By plateau we understand a steady state on the given signal.
+Algorithm for recognition of plateaus in time signals. By plateau we understand a steady state on given input signal.
 
 ## Installation
 
-Inside folder signal_plateau_recognition/ type:
+Inside folder `signal_plateau_recognition/` type:
 
     pip install --user .
 
 ## Example script
 
-Execute example script as:
+Execute script example as:
 
     python script_example.py
 
