@@ -5,13 +5,13 @@ Algorithm for recognition od plateaus in time signals. By plateau we understand 
 
 ## Installation
 
-pip install --user signal_plateau_recognition
+    pip install --user .
 
 ## Example script
 
 Execute example script as:
 
-python script_example.py
+    python script_example.py
 
 [comment]: <> (## Example plot)
 
@@ -23,7 +23,7 @@ python script_example.py
 
 ## Dependencies
 
-    python >= 3.6
-    numpy >= 1.15
-    scipy >= 1.0
-    scikit-learn >= 0.18
+    python
+    numpy
+    scipy
+    scikit-learn
