@@ -21,7 +21,7 @@ Execute script example as:
 An example of plateau recognition
 
 <p align="center">
-<img align="middle" src="https://github.com/jmoralesFusion/signal_plateau_recognition/master/example_figures/example_result.png" width="600" alt="Plateau recognition example"/>
+<img align="middle" src="https://github.com/jmoralesFusion/signal_plateau_recognition/blob/master/example_figures/example_result.png" width="600" alt="Plateau recognition example"/>
 </p>
 
 ## Dependencies
