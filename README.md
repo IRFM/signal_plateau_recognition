@@ -6,7 +6,7 @@ If you need help please contact: jorge012@gmail.com
 
 ## Installation
 
-Inside folder `signal_plateau_recognition/` type:
+Inside folder `signal_plateau_recognition/` type (do not forget the dot):
 
     pip install --user .
 
