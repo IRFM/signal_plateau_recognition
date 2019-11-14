@@ -1,7 +1,7 @@
 Signal plateau recognition
 ==========================
 
-Algorithm for recognition of plateaus in time signals. By plateau we understand a steady state on given input signal.
+Algorithm for recognition of plateaus in one-dimensional signals. By plateau we understand a steady state on given input signal.
 If you need help please contact: jorge012@gmail.com
 
 ## Installation
