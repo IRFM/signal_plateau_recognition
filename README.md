@@ -16,13 +16,13 @@ Execute script example as:
 
     python script_example.py
 
-[comment]: <> (## Example plot)
+## Example plot
 
-[comment]: <> (Here are some examples of plateau recognition on power signal)
+An example of plateau recognition
 
-[comment]: <> (<p align="center">)
-[comment]: <> (<img align="middle" src="https://github.com/ToFuProject/tofu/blob/master/README_figures/CamLOS1D_touch.png" width="600" alt="Built-in one-liners for interactive camera geometry visualization"/>)
-[comment]: <> (</p>)
+<p align="center">
+<img align="middle" src="https://github.com/jmoralesFusion/signal_plateau_recognition/master/example_figures/example_result.png" width="600" alt="Plateau recognition example"/>
+</p>
 
 ## Dependencies
 
