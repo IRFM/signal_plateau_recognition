@@ -12,12 +12,13 @@ import numpy as np
 #import os
 #import re
 #import scipy.io
+import scipy.interpolate as sc_interp
 import scipy.signal as sc_sig
 from sklearn.neighbors import KernelDensity
 #from statsmodels import robust
 #import traceback
 #import sys
-#import warnings
+import warnings
 
 
 __all__ = ['StatsPlateau', 'ErrorStatsPlateau']
@@ -37,7 +38,7 @@ class StatsPlateau:
     errorPlateau : float, optional (default=0.05)
         One side error or tolerance for plateau computation RELATIVE to
         plateau value (ex: plateau_value +/- plateau_value*errorPlateau)
-    minPlateau : float, optional (default=0.5)
+    minPlateau : float, optional (default=0.3)
         Minimum length of plateau (in timeRef units)
     distPlateau : float, optional (default=0.05)
         Minimum distance between plateaus (in timeRef units).
@@ -99,7 +100,7 @@ class StatsPlateau:
         Initial time of each plateau
     '''
     def __init__(self, timeRef, dataRef, errorPlateau=0.05, \
-                 minPlateau=0.5, distPlateau=0.05, plateau='all', \
+                 minPlateau=0.3, distPlateau=0.05, plateau='all', \
                  lowLim=None, highLim=None):
 
         # RETURN if empty minPlateau or distPlateau small compared to time step
@@ -137,7 +138,7 @@ class StatsPlateau:
                               lowLim, highLim)
 
     def addSignal(self, timeRef, dataRef, errorPlateau=0.05, \
-                  minPlateau=0.5, distPlateau=0.05, plateau='all', \
+                  minPlateau=0.3, distPlateau=0.05, plateau='all', \
                   lowLim=None, highLim=None):
 
         # RETURN if empty minPlateau or distPlateau small compared to time step
@@ -175,7 +176,11 @@ class StatsPlateau:
         dataRef = np.atleast_1d(np.squeeze(dataRef))
 
         # Interpolate in first time base and keep timeRef as its ref. time
-        dataRef = np.interp(self.timeRef[0], timeRef, dataRef)
+        #dataRef = np.interp(self.timeRef[0], timeRef, dataRef)
+        mask_nans = (~np.isnan(timeRef)) & (~np.isnan(dataRef))
+        f_interp = sc_interp.interp1d(timeRef[mask_nans], dataRef[mask_nans], \
+                                      bounds_error=False)
+        dataRef = f_interp(self.timeRef[0])
         timeRef = self.timeRef[0]
 
         # Compute plateau for other signals
@@ -184,7 +189,7 @@ class StatsPlateau:
                               lowLim, highLim)
 
     def _computePlateaus(self, timeRef, dataRef, errorPlateau=0.05, \
-                         minPlateau=0.5, distPlateau=0.05, plateau='all', \
+                         minPlateau=0.3, distPlateau=0.05, plateau='all', \
                          lowLim=None, highLim=None):
 
         # Make sure input data is 1D
@@ -200,8 +205,13 @@ class StatsPlateau:
         self._timeRefIntp = np.linspace(self.timeRef[-1][0], \
                                         self.timeRef[-1][-1], \
                                         self.timeRef[-1].size)
-        self._dataRefIntp = np.interp(self._timeRefIntp, self.timeRef[-1], \
-                                      self.dataRef[-1])
+        #self._dataRefIntp = np.interp(self._timeRefIntp, self.timeRef[-1], \
+        #                              self.dataRef[-1])
+        mask_nans = (~np.isnan(self.timeRef[-1])) & (~np.isnan(self.dataRef[-1]))
+        f_interp = sc_interp.interp1d(self.timeRef[-1][mask_nans], \
+                                      self.dataRef[-1][mask_nans], \
+                                      bounds_error=False)
+        self._dataRefIntp = f_interp(self._timeRefIntp)
 
         self.plateauVal[-1], self.tIniPlateau[-1], self.tEndPlateau[-1], \
         self._pdfPeak, self.maskPlateau[-1], self.timePlateau[-1] \
@@ -216,10 +226,13 @@ class StatsPlateau:
 
             self._errorPlateau2 = errorPlateau
 
-            while (np.any(np.abs(diffPlateau) \
-                       <= np.abs(errorPlateau*self.plateauVal[-1][:-1])) \
-                   and np.any(gapPlateau <= distPlateau) \
-                   or np.any(gapPlateau <= 0)):
+            #while (np.any(np.abs(diffPlateau) \
+            #           <= np.abs(errorPlateau*self.plateauVal[-1][:-1])) \
+            #       and np.any(gapPlateau <= distPlateau) \
+            #       or np.any(gapPlateau <= 0)):
+            while (np.any((np.abs(diffPlateau) \
+                <= np.abs(errorPlateau*self.plateauVal[-1][:-1])) \
+                & (gapPlateau <= distPlateau))):
 
                 self._errorPlateau2 *= 1.05
                 if (self._errorPlateau2 > 2*errorPlateau):
@@ -254,6 +267,7 @@ class StatsPlateau:
             self.plateauVal[-1]  = self.plateauVal[-1][self._maskLim]
             self.tIniPlateau[-1] = self.tIniPlateau[-1][self._maskLim]
             self.tEndPlateau[-1] = self.tEndPlateau[-1][self._maskLim]
+            self._pdfPeak = self._pdfPeak[self._maskLim]
             self.maskPlateau[-1] = self.maskPlateau[-1][self._maskLim]
             self.timePlateau[-1] = [self.timePlateau[-1][kk] \
                  for kk in range(self._maskLim.size) if self._maskLim[kk]]
@@ -315,6 +329,7 @@ class StatsPlateau:
                     self.tIniPlateau = self.tIniPlateau[sort_indexes]
                     self.tEndPlateau = self.tEndPlateau[sort_indexes]
                     self.maskPlateau = self._maskRefReq[sort_indexes]
+                    self._maskRefReq = self._maskRefReq[sort_indexes]
                     self.timePlateau = [self.timePlateau[kk] for kk in sort_indexes]
 
                     self.dataPlateau = \
@@ -358,13 +373,19 @@ class StatsPlateau:
                                     +str(self.plateauVal[-1].size), \
                                     'No plateau found')
 
-    def applyFct(self, timeData, data, lfunction):
+    def applyFct(self, timeData, data, lfunction, sigma_outliers=3):
         '''Apply function or list of functions to data at plateau'''
         # Make sure input data is 1D
         timeData = np.atleast_1d(np.squeeze(timeData))
         data     = np.atleast_1d(np.squeeze(data))
 
-        self.data = np.interp(self.timeRef[0], timeData, data)
+        #self.data = np.interp(self.timeRef[0], timeData, data)
+        mask_nans = (~np.isnan(timeData)) & (~np.isnan(data))
+        f_interp = sc_interp.interp1d(timeData[mask_nans], data[mask_nans], \
+                                      bounds_error=False)
+        self.data = f_interp(self.timeRef[0])
+
+        self.mask_outliers = [None]*len(self._maskRefReq)
 
         if (isinstance(lfunction, list)):
             self.result = \
@@ -372,14 +393,25 @@ class StatsPlateau:
             for ii in range(len(lfunction)):
                 for jj in range(len(self._maskRefReq)):
                     self._dataFctPlateau = self.data[self._maskRefReq[jj]]
+                    self.mask_outliers[jj] = reject_outliers( \
+                                             self._dataFctPlateau, \
+                                             m=sigma_outliers, return_mask=True)
+                    if (~np.all(self.mask_outliers[jj])):
+                        warnings.warn('Removing outliers in plateau')
                     self.result[ii][jj] = eval(lfunction[ii] \
-                                             + '(self._dataFctPlateau)')
+                         + '(self._dataFctPlateau[self.mask_outliers[jj]])')
             self.result = tuple(self.result)
         else:
             self.result = [None]*len(self._maskRefReq)
             for ii in range(len(self._maskRefReq)):
                 self._dataFctPlateau = self.data[self._maskRefReq[ii]]
-                self.result[ii] = eval(lfunction + '(self._dataFctPlateau)')
+                self.mask_outliers[jj] = reject_outliers( \
+                                          self._dataFctPlateau, \
+                                          m=sigma_outliers, return_mask=True)
+                if (~np.all(self.mask_outliers[jj])):
+                    warnings.warn('Removing outliers in plateau')
+                self.result[ii] = eval(lfunction \
+                                + '(self._dataFctPlateau[self.mask_outliers[jj]])')
             self.result = tuple(self.result)
         return self.result
 
@@ -399,11 +431,42 @@ class StatsPlateau:
 
         minPlateauNorm = minPlateau / (timeRefIntp[-1] - timeRefIntp[0])
 
-        self._pdfFilt       = self._pdf[band_in*self._pdf > minPlateauNorm]
-        self._samplePtsFilt = self._samplePts[band_in*self._pdf > minPlateauNorm]
+        #self._pdfFilt       = self._pdf[band_in*self._pdf > minPlateauNorm]
+        #self._samplePtsFilt = self._samplePts[band_in*self._pdf > minPlateauNorm]
 
-        self._ptsPeak = self._samplePtsFilt[sc_sig.argrelmax(self._pdfFilt)]
-        pdfPeak       = self._pdfFilt[sc_sig.argrelmax(self._pdfFilt)]
+        try:
+            ind_peaks, _ = sc_sig.find_peaks(self._pdf, \
+                                  distance=(self.__numSamplePts*errorPlateau))
+        except AttributeError as err:
+            warnings.warn('Function find_peaks not found, we recommend to update' \
+                         + ' scipy to a version >= 1.1.0')
+            # Hand made find_peaks function taking into account distance option
+            ind_peaks = sc_sig.argrelmax(self._pdf)[0]
+            distance_peaks = self.__numSamplePts*errorPlateau
+
+            while np.any(np.diff(ind_peaks) < distance_peaks):
+                ind_sort_peaks = np.argsort(self._pdf[ind_peaks])
+                mask_del = np.ones(ind_peaks.size, dtype=bool)
+                for ii in range(ind_sort_peaks.size):
+                    if (ind_sort_peaks[ii]+1 < ind_peaks.size):
+                        if (np.abs(ind_peaks[ind_sort_peaks[ii]+1] \
+                                 - ind_peaks[ind_sort_peaks[ii]]) \
+                           < distance_peaks):
+                            mask_del[ind_sort_peaks[ii]] = False
+                    if (ind_sort_peaks[ii]-1 >= 0):
+                        if (np.abs(ind_peaks[ind_sort_peaks[ii]-1] \
+                                 - ind_peaks[ind_sort_peaks[ii]]) \
+                           < distance_peaks):
+                            mask_del[ind_sort_peaks[ii]] = False
+                    if (~np.all(mask_del)):
+                        break
+                ind_peaks = ind_peaks[mask_del]
+
+        # Filter taking into account minimum plateau length
+        ind_peaks = ind_peaks[band_in*self._pdf[ind_peaks] > minPlateauNorm]
+
+        self._ptsPeak = self._samplePts[ind_peaks]
+        pdfPeak       = self._pdf[ind_peaks]
 
         self._medianPeak = np.full(self._ptsPeak.size, np.nan)
         for ii in range(self._ptsPeak.size):
@@ -416,7 +479,7 @@ class StatsPlateau:
         plateauVal = self._medianPeak[self._medianPeak != 0.]
         pdfPeak    = pdfPeak[self._medianPeak != 0.]
 
-        # RETURN if empty plateauVal because plateau too not long enough
+        # RETURN if empty plateauVal because plateau not long enough
         if (plateauVal.size == 0):
             raise ErrorStatsPlateau('minPlateau = '+str(minPlateau), \
                                     'Min length plateau not respected')
@@ -445,6 +508,8 @@ class StatsPlateau:
 
             # Find jumps to separate different time spaced plateaus
             self._time_mask = timeRef[self._mask_tmp[ii]]
+            if (len(self._time_mask) == 0):
+                continue
             self._delta_t_plto[ii] = self._time_mask[1:] \
                                    - self._time_mask[:-1]
 
@@ -503,7 +568,9 @@ class StatsPlateau:
 
         # Empty elements that correspond to short plateaus
         for ii in range(plateauVal.size):
-            if (len(self._maskPltoTmp[ii]) == 0):
+            if (self._maskPltoTmp[ii] is None):
+                self._boolPlateau[ii] = False
+            elif (len(self._maskPltoTmp[ii]) == 0):
                 self._maskPltoTmp[ii] = None
                 self._boolPlateau[ii] = False
             elif (len(self._maskPltoTmp[ii]) > 1):
@@ -547,6 +614,12 @@ class StatsPlateau:
 class Error(Exception):
    """Base class for other exceptions"""
    pass
+
+def reject_outliers(data, m=2, return_mask=False):
+    if (return_mask):
+        return np.abs(data - np.nanmean(data)) <= m * np.nanstd(data)
+    else:
+        return data[np.abs(data - np.nanmean(data)) <= m * np.nanstd(data)]
 
 class ErrorStatsPlateau(Error):
     def __init__(self, expression, message):
